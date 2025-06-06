@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -20,7 +21,6 @@ if uploaded_file is not None:
         st.subheader("📋 Preview of Uploaded Data")
         st.dataframe(df.head())
 
-        # Basic check
         if "DEATH_EVENT" not in df.columns:
             st.error("❌ 'DEATH_EVENT' column not found in the dataset.")
         else:
@@ -37,7 +37,7 @@ if uploaded_file is not None:
                 X_scaled, y, test_size=0.2, stratify=y, random_state=42
             )
 
-            # Train logistic regression
+            # Train model
             model = LogisticRegression(max_iter=1000)
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
@@ -47,36 +47,35 @@ if uploaded_file is not None:
             accuracy = accuracy_score(y_test, y_pred)
             st.metric("✅ Model Accuracy", f"{accuracy:.2%}")
 
-            # Confusion Matrix
-            st.subheader("📊 Confusion Matrix")
+            # Confusion Matrix using Plotly
             cm = confusion_matrix(y_test, y_pred)
-            fig1, ax1 = plt.subplots()
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax1)
-            ax1.set_xlabel("Predicted")
-            ax1.set_ylabel("Actual")
-            st.pyplot(fig1)
+            st.subheader("📊 Confusion Matrix")
+            fig_cm = px.imshow(cm,
+                               text_auto=True,
+                               color_continuous_scale="Blues",
+                               labels=dict(x="Predicted", y="Actual", color="Count"))
+            fig_cm.update_layout(xaxis_title="Predicted", yaxis_title="Actual")
+            st.plotly_chart(fig_cm)
 
-            # ROC Curve
+            # ROC Curve using Plotly
             st.subheader("📈 ROC Curve")
             fpr, tpr, _ = roc_curve(y_test, y_prob)
             roc_auc = auc(fpr, tpr)
-            fig2, ax2 = plt.subplots()
-            ax2.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
-            ax2.plot([0, 1], [0, 1], 'k--')
-            ax2.set_xlabel("False Positive Rate")
-            ax2.set_ylabel("True Positive Rate")
-            ax2.legend()
-            st.pyplot(fig2)
+            fig_roc = go.Figure()
+            fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'AUC = {roc_auc:.2f}'))
+            fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Random', line=dict(dash='dash')))
+            fig_roc.update_layout(xaxis_title='False Positive Rate',
+                                  yaxis_title='True Positive Rate',
+                                  title='ROC Curve')
+            st.plotly_chart(fig_roc)
 
-            # Feature Importance
+            # Feature Importance using Plotly
             st.subheader("📌 Feature Coefficients")
             coefficients = pd.Series(model.coef_[0], index=X.columns).sort_values()
-            fig3, ax3 = plt.subplots()
-            coefficients.plot(kind="barh", ax=ax3)
-            ax3.set_title("Logistic Regression Coefficients")
-            st.pyplot(fig3)
+            fig_coeff = px.bar(coefficients, orientation='h', title='Logistic Regression Coefficients')
+            st.plotly_chart(fig_coeff)
 
     except Exception as e:
-        st.error(f"❌ An error occurred while processing the file:\n\n{e}")
+        st.error(f"❌ An error occurred: {e}")
 else:
     st.info("📥 Please upload a CSV file to begin.")
